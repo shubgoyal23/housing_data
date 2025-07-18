@@ -1,10 +1,22 @@
 from playwright.sync_api import sync_playwright
 import shutil
 import json
+import re
 chrome_path = shutil.which("google-chrome") or shutil.which("chrome") or "/opt/google/chrome/chrome"
 
 
 all_data = []
+
+def price_parser(price):
+    price_str = re.sub(r'[^a-zA-Z0-9]', '', price)
+    price_num = price.split("-")[0]
+    price_num = re.sub(r'[^0-9]', '', price_num)
+    
+    if "L" in price_str:
+        price_num = int(price_num) * 100000
+    elif "K" in price_str:
+        price_num = int(price_num) * 1000
+    return price_num
 
 with sync_playwright() as p:
     browser = p.chromium.launch(
@@ -14,8 +26,8 @@ with sync_playwright() as p:
     page = browser.new_page()
     page.goto("https://housing.com/in/buy/searches/P6xfqdsey6cc3d95hU2z1ye?gad_campaignid=21063166520&gclid=Cj0KCQjwss3DBhC3ARIsALdgYxMEVNxWBEBjW7T157k70Sll8LRR0ZCZfbUf0h7EMfAJKxAgkLBbUy8aAikREALw_wcB")
 
-    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-    page.wait_for_timeout(3000)
+    # page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    # page.wait_for_timeout(3000)
     
     main_dev = page.locator(".css-1m1bruh")
     # print(main_dev)
@@ -48,10 +60,10 @@ with sync_playwright() as p:
         if sub_title.count() > 0:
             data["sub_title"] = sub_title.text_content()
         
-        # price
-        price = child.locator(".slider-Wrapper.T_sliderWrapper._e21osq._tr161g._uc12yw._mkh2mm")
+        # price 
+        price = child.locator(".slider.T_sliderCont._mkh2mm._vv1q9c._vy1osq")
         if price.count() > 0:
-            price = price.locator(":scope > div")
+            price = price.locator(".T_configContainer._fc1h6o._cxyh40._ar1bp4._9s1txw._l84xfc._5qeaux.T_firstContainer._lkidpf")
             count_price = price.count()
             price_set = []
             for j in range(count_price):
@@ -62,7 +74,7 @@ with sync_playwright() as p:
                 p = price.locator(".T_blackText._c8dlk8._7l1ulh.T_descriptionStyle._t91dk0._r31e5h._g3exct._csbfng._bx1t02")
                 if p.count() > 0:
                     p_w = p.text_content()
-                price_set.append({"title": txt_w, "price": p_w})
+                price_set.append({"title": txt_w, "price": price_parser(p_w)})
             data["price"] = price_set
         
         # description
@@ -82,3 +94,5 @@ with sync_playwright() as p:
     
 with open("data.json", "w") as f:
     json.dump(all_data, f, indent=4)
+
+
